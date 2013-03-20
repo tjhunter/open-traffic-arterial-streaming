@@ -15,9 +15,9 @@ resolvers ++= Seq(
 
 libraryDependencies  += "org.scalanlp" % "breeze-learn_2.9.2" % "0.2-SNAPSHOT"
 
-libraryDependencies += "org.spark-project" % "spark-core_2.9.2" % "0.7.0-SNAPSHOT"
+libraryDependencies += "org.spark-project" % "spark-core_2.9.2" % "0.7.0"
 
-libraryDependencies += "org.spark-project" % "spark-streaming_2.9.2" % "0.7.0-SNAPSHOT"
+libraryDependencies += "org.spark-project" % "spark-streaming_2.9.2" % "0.7.0"
 
 // Dependencies to represent and manipulate time
 
