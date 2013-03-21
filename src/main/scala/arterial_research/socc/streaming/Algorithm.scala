@@ -21,6 +21,7 @@ import arterial_research.socc.SparkConfig
 import spark.streaming.StreamingContext.toPairDStreamFunctions
 import spark.streaming.DStream
 import spark.streaming.Seconds
+import spark.streaming.{Duration => SDuration}
 import spark.streaming.StreamingContext
 import core_extensions.MMLogging
 import arterial_research.socc.Environment
@@ -93,10 +94,10 @@ object Algorithm extends MMLogging {
    */
   def startComputations(em_config: EMConfig, extended_output: Boolean): Unit = {
     // Creates the spark context
-    val ssc = new StreamingContext(em_config.spark.master_url, em_config.spark.framework)
-    for (dt <- em_config.data_description.streaming_chunk_length) {
-      ssc.setBatchDuration(dt)
-    }
+    val master_url:String = em_config.spark.master_url
+    val framework:String = em_config.spark.framework
+    val dt:Duration = em_config.data_description.streaming_chunk_length
+    val ssc = new StreamingContext(master_url, framework, dt)
 
     val start_data_slice_index = ExperimentFunctions.startDataSliceIndex(em_config)
 
@@ -110,10 +111,10 @@ object Algorithm extends MMLogging {
 
     // Create an EM context that incorporates the prior
     // Ugly workarounds
-    val bc_em_config = ssc.sc.broadcast(em_config)
+    val bc_em_config = ssc.sparkContext.broadcast(em_config)
     val bc_prior = {
       val dct = collection.mutable.Map(prior.toSeq: _*)
-      ssc.sc.broadcast(dct)
+      ssc.sparkContext.broadcast(dct)
     }
     //    val em_context = new EMContext(em_config, prior)
     //    val bc_em_context = ssc.sc.broadcast(em_context)
@@ -174,7 +175,7 @@ object Algorithm extends MMLogging {
     // We need to update here the state to the nodes
     // Collect here the output and send it back to the node
     // TODO(tjh) is it the best way to do it??
-    new_node_states.foreachRDD(state_rdd => {
+    for (state_rdd <- new_node_states) {
       logInfo("Performing collect")
       val partial_state = state_rdd.collect.toMap
       // Make sure to fill in here
@@ -212,7 +213,7 @@ object Algorithm extends MMLogging {
         current_step += 1
         logInfo("State written")
       }
-    })
+    }
 
     if (extended_output) {
       // Compute the marginal log likelihood
@@ -258,38 +259,31 @@ object Algorithm extends MMLogging {
       //    }
 
       // Workaround for now
-      data_stream.count.foreachRDD(rdd => {
+      for (rdd <- data_stream)  {
         val number_elts = rdd.collect.head
         logInfo("Current number of elements: %d" format number_elts)
-      })
+      }
       //       for (number_elts <- data_stream.count) {
       //         logInfo("Current number of elements: %d" format number_elts)
       //       }
-      em_complete_samples.count.foreachRDD(rdd => {
+      
+      for (rdd <- em_complete_samples.count) {
         val number_elts = rdd.collect.head
         logInfo("Current number of samples: %d" format number_elts)
-      })
-      marginal_ll.foreachRDD(rdd => {
+      }
+      
+      for (rdd <- marginal_ll) {
         val current_marginal_ll = rdd.collect.head
         logInfo("Current marginal ll: %f" format current_marginal_ll)
-      })
-      //   for (current_marginal_ll <- marginal_ll) {
-      //     logInfo("Current marginal ll: %f" format current_marginal_ll)
-      //   }
-      weighted_ec_lls.foreachRDD(rdd => {
+      }
+      for (rdd <- weighted_ec_lls) {
         val current_weighted_ecll = rdd.collect.head
         logInfo("Current ECLL: %f" format current_weighted_ecll)
-      })
-      //   for (current_weighted_ecll <- weighted_ec_lls) {
-      //     logInfo("Current ECLL: %f" format current_weighted_ecll)
-      //   }
-      weighted_post_ec_lls.foreachRDD(rdd => {
+      }
+      for (rdd <- weighted_post_ec_lls) {
         val current_weighted_post_ecll = rdd.collect.head
         logInfo("Current post-learning ECLL: %f" format current_weighted_post_ecll)
-      })
-      //   for (current_weighted_post_ecll <- weighted_post_ec_lls) {
-      //     logInfo("Current post-learning ECLL: %f" format current_weighted_post_ecll)
-      //   }
+      }
 
     }
 
@@ -315,8 +309,8 @@ object Algorithm extends MMLogging {
         config.network_id, net_type = config.network_type)
         .sorted
       val head_index = all_indexes.head
-      val decay = em_config.data_description.get.slice_decay_half_time
-      val window_duration = em_config.data_description.get.slice_window_duration
+      val decay:SDuration = em_config.data_description.get.slice_decay_half_time
+      val window_duration:SDuration = em_config.data_description.get.slice_window_duration
       // Precomputing all the RDDs
       val num_splits = 1
       val all_indexed_rdds = ObservationDStream.preloadRDDs(sc, all_indexes, num_splits) // Put some replication factor
@@ -392,7 +386,7 @@ object Algorithm extends MMLogging {
         // Did we get any data?
         if (count > 0) {
           val p_obs = complete_data
-          val dtime = new DateTime(current_time.millis)
+          val dtime = new DateTime(current_time.milliseconds)
           for (iter <- 0 until em_config.num_iterations) {
             logInfo("Processing iteration %d step %d : start time is %s" format (current_step, iter, (dtime)))
             val (new_state, complete_new_state, stats) = LearnSpark.learnWeightedStepSpark(
@@ -431,9 +425,9 @@ object BroacastingUpdate extends MMLogging {
     val wired_state = state.toSeq.toArray
     val n = 3 * Environment.numberNodes.getOrElse(10)
     logInfo("Broadcasting new state %d times..." format n)
-    val bc_wired_state = ssc.sc.broadcast(wired_state)
+    val bc_wired_state = ssc.sparkContext.broadcast(wired_state)
     // Create an RDD big enough so that every partition will be on a compute node
-    val dummy = ssc.sc.parallelize(1 to n, n)
+    val dummy = ssc.sparkContext.parallelize(1 to n, n)
     // Use the dummy RDD to traverse every node and update the state using the broadcast
     for (_ <- dummy) {
       // Will refer to the node's local singleton

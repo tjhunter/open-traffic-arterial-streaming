@@ -12,6 +12,8 @@ import org.joda.time.DateTime
  */
 class ShiftedDStream[T: ClassManifest] (@transient parent:DStream[T], val shift:SDuration) extends DStream[T](parent.context) {
 
+  def slideDuration = parent.slideDuration
+  
   def compute(t:Time) = {
     val shifted_t = t + shift
     parent.compute(shifted_t)
@@ -54,5 +56,5 @@ class ShiftedInputDStream[T: ClassManifest] (val parent:InputDStream[T], val shi
   
   def stop = parent.stop()
   
-  override def slideTime = parent.slideDuration
+  override def slideDuration = parent.slideDuration
 }

@@ -56,10 +56,11 @@ object SimpleStreaming extends App with MMLogging {
   }
 
   // Creates the spark context
-  val ssc = new StreamingContext(em_config.spark.master_url, em_config.spark.framework)
-  for (dt <- em_config.data_description.streaming_chunk_length) {
-//    ssc.batchDuration = dt
-  }
+  val ssc = new StreamingContext(em_config.spark.master_url, 
+      em_config.spark.framework,em_config.data_description.streaming_chunk_length)
+//  for (dt <- em_config.data_description.streaming_chunk_length) {
+////    ssc.batchDuration = dt
+//  }
 
   val start_data_slice_index = ExperimentFunctions.startDataSliceIndex(em_config)
 
@@ -77,11 +78,11 @@ object SimpleStreaming extends App with MMLogging {
   var state = prior
 //  val num_splits = em_config.num_splits
 
-  val bc_em_context = ssc.sc.broadcast(em_context)
+  val bc_em_context = ssc.sparkContext.broadcast(em_context)
 
   var num_steps = 0
   var current_slice_index = start_data_slice_index
-  data_stream.foreachRDD(weighted_obs => {
+  for (weighted_obs <- data_stream) {
     logInfo("Performing step %d" format (num_steps))
     val (new_state, stats) = LearnSpark.learnWeightedWithSparkStep(
       weighted_obs,
@@ -89,12 +90,12 @@ object SimpleStreaming extends App with MMLogging {
       em_context,
       start_data_slice_index,
       num_steps,
-      ssc.sc)
+      ssc.sparkContext)
     InputOutput.saveStats(em_config, stats, null)
     state = new_state
     num_steps += 1
     current_slice_index = current_slice_index.nextSlice
-  })
+  }
 
   ssc.start()
 }

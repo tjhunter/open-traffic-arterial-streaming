@@ -2,6 +2,7 @@ package arterial_research.socc.streaming
 
 import spark.streaming.DStream
 import spark.streaming.Time
+import spark.streaming.{Duration=>SDuration}
 import spark.RDD
 import spark.Logging
 import scala.collection.mutable.Queue
@@ -19,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 class WeightedWindowedDStream[T: ClassManifest, U: ClassManifest](
   @transient parent: DStream[U],
   weighingFunction: (RDD[U], Double) => RDD[T],
-  weights: IndexedSeq[Double]) extends DStream[T](parent.ssc) with Logging {
+  weights: IndexedSeq[Double]) extends DStream[T](parent.context) with Logging {
 
   logInfo(this + " has parent "+parent)
   
@@ -29,7 +30,9 @@ class WeightedWindowedDStream[T: ClassManifest, U: ClassManifest](
 
   override def dependencies = List(parent)
 
-  override def slideTime: Time = parent.slideTime
+
+  def slideDuration = parent.slideDuration
+//  override def slideTime: Time = parent.slideTime
 
   override def compute(validTime: Time): Option[RDD[T]] = {
     logInfo(this + " Called with validTime = " + validTime + " <-> " + (new DateTime(validTime.milliseconds)))
@@ -42,7 +45,7 @@ class WeightedWindowedDStream[T: ClassManifest, U: ClassManifest](
       queue += validTime -> rdd
     }
     // Drop the old elements from the queue
-    val drop_time = validTime - slideTime * weights.size
+    val drop_time = validTime - slideDuration * weights.size
     queue.dequeueAll(_._1 <= drop_time)
     assert(queue.size <= weights.size)
     // If the queue is empty, return None
@@ -52,10 +55,10 @@ class WeightedWindowedDStream[T: ClassManifest, U: ClassManifest](
       // Otherwise, return the union
       // Use the time indexes to make a joint
       // Requires the exact use of a sliding time multiple
-      assert(queue.forall(z => (z._1.milliseconds - validTime.milliseconds) % slideTime.milliseconds == 0), queue)
+      assert(queue.forall(z => (z._1.milliseconds - validTime.milliseconds) % slideDuration.milliseconds == 0), queue)
       val mapped_rdds = queue.map({
         case (t, rdd) =>
-          val i = ((validTime - t).milliseconds / slideTime.milliseconds).toInt
+          val i = ((validTime - t).milliseconds / slideDuration.milliseconds).toInt
           assert(i >= 0, (i, queue))
           assert(i < queue.size)
           val w = weights(i)

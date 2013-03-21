@@ -90,7 +90,7 @@ object ArterialGammaTTProvider extends MMLogging {
       start_time.toDateTime() + dt3
     }
 
-    val stream_chunk_length = em_config.data_description.streaming_chunk_length.get.millis.toInt
+    val stream_chunk_length = em_config.data_description.streaming_chunk_length.get.milliseconds.toInt
     logInfo("stream_chunk_length: " + stream_chunk_length)
 
     val all_tts = (0 until em_config.data_description.num_steps).flatMap { current_step =>
@@ -147,7 +147,7 @@ object ArterialGammaTTProvider extends MMLogging {
       ttp
     }
 
-    val interslice_max_duration = config.get.slice_window_duration.millis.toInt.millis
+    val interslice_max_duration = config.get.slice_window_duration.milliseconds.toInt.millis
 
     SliceTTProvider.apply(all_tts, readSlice, interslice_max_duration)
   }

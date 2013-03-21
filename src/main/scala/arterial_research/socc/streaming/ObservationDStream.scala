@@ -9,6 +9,7 @@ import arterial_research.socc.io.DataSliceIndex
 import spark.streaming.StreamingContext
 import spark.streaming.Time
 import spark.streaming.Seconds
+import spark.streaming.{Duration => SDuration}
 import spark.streaming.Milliseconds
 import spark.streaming.dstream.UnionDStream
 import spark.RDD
@@ -28,15 +29,15 @@ import org.scala_tools.time.Imports._
 
 trait Stream extends Logging {
 
-  def window_length: Time
-  def decay_half_time: Time
+  def window_length: SDuration
+  def decay_half_time: SDuration
   def preloadedData: DataSliceIndex => Option[RDD[Record]]
-  def context: SparkContext
+  def sparkContext: SparkContext
   def start_index: DataSliceIndex
 
   lazy val emptyRDD = {
     val d = Seq.empty[(PartialObservation, Double)]
-    val rdd = context.makeRDD(d, 1)
+    val rdd = sparkContext.makeRDD(d, 1)
     rdd
   }
 
@@ -107,9 +108,9 @@ trait Stream extends Logging {
 
 class BatchStream(
   @transient val start_index: DataSliceIndex,
-  @transient val context: SparkContext,
-  @transient val window_length: Time,
-  @transient val decay_half_time: Time,
+  @transient val sparkContext: SparkContext,
+  @transient val window_length: SDuration,
+  @transient val decay_half_time: SDuration,
   @transient val preloadedData: DataSliceIndex => Option[RDD[Record]] = (z: DataSliceIndex) => None) extends Stream with Serializable {
 }
 
@@ -124,17 +125,17 @@ class BatchStream(
 class ObservationDStream(
   @transient val start_index: DataSliceIndex,
   ssc: StreamingContext,
-  @transient val slide_time: Time,
-  @transient val window_length: Time,
-  @transient val decay_half_time: Time,
+  @transient val slide_time: SDuration,
+  @transient val window_length: SDuration,
+  @transient val decay_half_time: SDuration,
   @transient preloaded_data: Map[DataSliceIndex, RDD[Record]] = Map.empty)
   extends InputDStream[(PartialObservation, Double)](ssc) with Stream {
 
   def preloadedData = preloaded_data.get _
 
-//  override def context = ssc.context
+  def sparkContext = ssc.sparkContext
 
-  override val slideTime = slide_time
+  override val slideDuration = slide_time
 
   def start = {}
 
@@ -163,9 +164,9 @@ object ObservationDStream extends MMLogging {
     }
   }
 
-  def indexStartTime(index: DataSliceIndex, reference_index: DataSliceIndex): Time = {
+  def indexStartTime(index: DataSliceIndex, reference_index: DataSliceIndex): SDuration = {
     require(index >= reference_index, (index, reference_index))
-    var t = Time(0)
+    var t = Milliseconds(0)
     var idx = reference_index
     while (idx <= index) {
       t = t + sliceTime
@@ -196,8 +197,8 @@ object ObservationDStream extends MMLogging {
       val d_w = day_weights(i)
       shifted.map({ case (pobs, w) => (pobs, w * d_w) })
     })
-    all_sequences.fold(z => z._1.union(z._2))
-//    new UnionDStream(all_sequences.toArray)
+    def union[T](d1:DStream[T],d2:DStream[T]):DStream[T] = d1.union(d2)
+    all_sequences.reduceLeft(union _)
   }
 
   /**

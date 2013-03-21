@@ -11,6 +11,7 @@ import arterial_research.socc.LearnSpark
 import arterial_research.socc.EMContext
 import spark.streaming.StreamingContext
 import spark.streaming.DStream
+import spark.streaming.{Duration=>SDuration}
 import spark.streaming.StreamingContext._
 import arterial_research.socc.PartialObservation
 import arterial_research.socc.gamma.GammaSample
@@ -21,6 +22,7 @@ import org.joda.time.DateTime
 import org.joda.time.Duration
 import spark.streaming.Seconds
 import core.storage.TimeRepr
+import spark.streaming.Milliseconds
 
 object ExperimentFunctions extends MMLogging {
 
@@ -49,7 +51,7 @@ object ExperimentFunctions extends MMLogging {
     val dt2 = {
       val now = new DateTime
       val start_slice_time = head_index.startTime
-      (new Duration(now, start_slice_time.toDateTime)).getMillis()
+      SDuration((new Duration(now, start_slice_time.toDateTime)).getMillis())
     }
     logInfo("dt = " + dt)
     logInfo("dt2 = " + dt2)
@@ -74,19 +76,19 @@ object ExperimentFunctions extends MMLogging {
     val dt2 = {
       val now = new DateTime
       val start_slice_time = head_index.startTime
-      (new Duration(now, start_slice_time.toDateTime)).getMillis()
+      Milliseconds((new Duration(now, start_slice_time.toDateTime)).getMillis())
     }
     // The time between the start of day and the date provided (if any)
     val dt3 = em_config.data_description match {
       case Some(data_description) => {
         data_description.start_time match {
           case Some(t) => {
-            t.getMillisOfDay()
+            Milliseconds(t.getMillisOfDay())
           }
-          case None => 0
+          case None => Milliseconds(0)
         }
       }
-      case None => 0
+      case None => Milliseconds(0)
     }
     logInfo("Local shift dt = " + dt)
     logInfo("Real-time correction shift: dt2 = " + dt2)
@@ -99,7 +101,7 @@ object ExperimentFunctions extends MMLogging {
     val stream_initial_fraction = em_config.stream_initial_fraction.getOrElse(1.0)
     logInfo("Stream initial fraction: %f" format stream_initial_fraction)
 //    val all_indexed_rdds = ObservationDStream.preloadRDDs(ssc.sc, all_indexes, 5) // Put some replication factor
-    val all_indexed_rdds = ObservationDStream.preloadDistributedRDDs(ssc.sc, all_indexes, initial_replication_factor, stream_initial_fraction) // Put some replication factor
+    val all_indexed_rdds = ObservationDStream.preloadDistributedRDDs(ssc.sparkContext, all_indexes, initial_replication_factor, stream_initial_fraction) // Put some replication factor
     val slide_duration = em_config.data_description.streaming_chunk_length.getOrElse({ throw new Exception("should be set!"); Seconds(1) })
     // The complete stream over the dataset, *starting from now in system clock*.
     val data_stream = new ObservationDStream(
