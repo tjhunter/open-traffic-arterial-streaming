@@ -35,7 +35,7 @@ class ShiftedDStream[T: ClassManifest] (@transient parent:DStream[T], val shift:
  * Shifts the time forward for an input DStream.
  */
 class ShiftedInputDStream[T: ClassManifest] (val parent:InputDStream[T], val shift:SDuration) extends InputDStream[T](parent.context) {
-  logInfo("shift: %d millis (%s)" format (shift, new Duration(shift)))
+  logInfo("shift: %d millis (%s)" format (shift, new Duration(shift.milliseconds)))
   
   def compute(validTime:Time) = {
     val shifted_t = validTime + shift
