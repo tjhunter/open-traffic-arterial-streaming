@@ -1,4 +1,5 @@
 package arterial_research.socc.io
+
 import core_extensions.MMLogging
 import netconfig.io.Dates
 import org.joda.time.LocalDate
@@ -11,7 +12,9 @@ import netconfig.storage.LinkIDRepr
 import arterial_research.socc.NodeId
 import arterial_research.socc.Record
 import netconfig.storage.LinkIDReprOrdering
-import com.codahale.jerkson.Json._
+import net.liftweb.json._
+import net.liftweb.json.Serialization.{read, write}
+//import com.codahale.jerkson.Json._
 import netconfig.Datum.storage.PathInferenceRepr
 import netconfig.io.StringDataSink
 import netconfig.io.DataSink
@@ -20,6 +23,8 @@ import arterial_research.socc.PartialObservation
 import arterial_research.socc.RecordRepr
 
 object ConvertObservations extends MMLogging {
+  
+  implicit val formats = Serialization.formats(NoTypeHints)
   
   def main(args:Array[String]) = {
     import Dates._
@@ -64,14 +69,14 @@ object ConvertObservations extends MMLogging {
     val lengths:Map[LinkIDRepr, Double] = glrs.map(glr => (glr.id, glr.length.get)).toSeq.toMap
     val slices_per_day = (60 * 24) / minute_per_slice
     
-    def save(u:RecordRepr):String = generate(u)
+    def save(u:RecordRepr):String = write(u) //generate(u)
     
     logInfo("About to start")
     for (index <- indexes) {
         logInfo("Started processing "+index)
         // Keep everything in memory to simplify
         val data_start = FileReading.readFlow(RouteTTViterbi.fileName(index))
-            .map(s => parse[PathInferenceRepr](s))
+            .map(s => read[PathInferenceRepr](s)) //parse[PathInferenceRepr](s))
         val data = data_start
             .flatMap(pi => ConvertTrajectories.convert(pi, lengths, map, slices_per_day))
         val data_grouped = data

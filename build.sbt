@@ -33,6 +33,11 @@ libraryDependencies += "cc.mallet" % "mallet" % "2.0.7"
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "1.1.3"
 
+// jerkson is abandoned by the author, trying to use lift instead
+
+libraryDependencies += "net.liftweb" %% "lift-json" % "2.4"
+
+
 libraryDependencies += "com.codahale" %% "jerkson" % "0.5.0"
 
 libraryDependencies += "com.github.scala-incubator.io" %% "scala-io-core" % "0.4.1-seq"

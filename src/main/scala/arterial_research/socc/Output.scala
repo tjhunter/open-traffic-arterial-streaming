@@ -1,6 +1,9 @@
 package arterial_research.socc
 import scalax.io._
-import com.codahale.jerkson.Json._
+//import com.codahale.jerkson.Json._
+import net.liftweb.json._
+import net.liftweb.json.Serialization.{read, write}
+
 import netconfig.storage._
 import netconfig.Datum.storage.PathInferenceRepr
 import core.storage.TimeRepr
@@ -27,10 +30,13 @@ import java.io.BufferedWriter
  */
 object InputOutput extends MMLogging {
   
+  implicit val formats = Serialization.formats(NoTypeHints)
+
   def readLine(s:String): (NodeId, GammaState) = {
     val s2 = s.replaceAll("_1","nodeId")
     .replaceAll("_2","state")
-    parse[StateRecord](s2).pair
+    read[StateRecord](s2).pair
+//    parse[StateRecord](s2).pair
   }
   
   def readStates(fname:String): Map[NodeId, GammaState] = {
@@ -45,7 +51,8 @@ object InputOutput extends MMLogging {
     val out = new BufferedWriter(new FileWriter(fname))
       for (x <- params.toSeq.sortBy(_._1)) {
         val sr = StateRecord(x._1, x._2)
-        out.write(generate(sr))
+        out.write(write(sr))
+//        out.write(generate(sr))
         out.write("\n")
       }
     out.close()
@@ -70,34 +77,39 @@ object InputOutput extends MMLogging {
       val out = processor.asOutput
       for (x <- params.toSeq.sortBy(_._1)) {
         val sr = ObsCountsRecord(x._1, x._2)
-        out.write(generate(sr))
+        out.write(write(sr))
+//        out.write(generate(sr))
         out.write("\n")
       }
     }
   }
   
   def parseObservation(ids:Map[LinkIDRepr, NodeId], s_obs:String):PartialObservation = {
-    val obs = parse[PathInferenceRepr](s_obs)
+    val obs = read[PathInferenceRepr](s_obs)
+//    val obs = parse[PathInferenceRepr](s_obs)
     val tt = TimeRepr.fromRepr(obs.endTime) - TimeRepr.fromRepr(obs.startTime)
     val route = obs.routes.head.links.map(ids.apply _)
     new PartialObservation(ObservationMask(route.toArray), tt)
   }
   
   def parseObservation(s_obs:String):PartialObservation = {
-    parse[PartialObservation](s_obs)
+    read[PartialObservation](s_obs)
+//    parse[PartialObservation](s_obs)
   }
   
   
   def parseRecord(s_obs:String):Record = {
     logInfo("parsing line:"+s_obs)
-    val rec = parse[RecordRepr](s_obs)
+    val rec = read[RecordRepr](s_obs)
+//    val rec = parse[RecordRepr](s_obs)
     rec.toRecord
   }
   
   def loadNetwork(fname:String):Map[LinkIDRepr, GenericLinkRepresentation] = {
     import scalax.io.Codec.UTF8
     val in = Resource.fromInputStream(new GZIPInputStream(new FileInputStream(fname)))
-    val links = in.lines().map(s => parse[GenericLinkRepresentation](s))
+    val links = in.lines().map(s => read[GenericLinkRepresentation](s))
+//    val links = in.lines().map(s => parse[GenericLinkRepresentation](s))
     Map.empty ++ links.map(l => (l.id, l))
   }
   
