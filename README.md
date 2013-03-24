@@ -95,6 +95,7 @@ The one variable you have to pass manually is the address of the Spak cluster. I
 
 ```bash
 export SPARK_MASTER=...
+export SPARK_MASTER="local[1]"
 ```
 
 ```bash
@@ -105,7 +106,7 @@ export SPARK_HOME=/root/spark/
 export EXTERNAL_HOSTNAME=`cat /root/mesos-ec2/masters`
 export HDFS_DATA_DIR="hdfs://$EXTERNAL_HOSTNAME:9010/data/"
 export NUM_MESOS_NODES=`cat /root/mesos-ec2/slaves | wc -l`
-export SPARK_JAVA_OPTS="-Dmesos.hostname=$SPARK_MASTER -Dsocc.hdfs.root=$HDFS_DATA_DIR -Dmesos.nodes.count=$NUM_MESOS_NODES"
+export SPARK_JAVA_OPTS="-Dmesos.hostname=$SPARK_MASTER -Dsocc.hdfs.root=$HDFS_DATA_DIR -Dmesos.nodes.count=$NUM_MESOS_NODES -Dmm.data.dir=/mnt/data/"
 ```
 
 Now, the main spark program can be run:

@@ -99,7 +99,7 @@ object InputOutput extends MMLogging {
   
   
   def parseRecord(s_obs:String):Record = {
-    logInfo("parsing line:"+s_obs)
+//    logInfo("parsing line:"+s_obs)
     val rec = read[RecordRepr](s_obs)
 //    val rec = parse[RecordRepr](s_obs)
     rec.toRecord
