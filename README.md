@@ -95,8 +95,14 @@ The one variable you have to pass manually is the address of the Spak cluster. I
 
 ```bash
 export SPARK_MASTER=...
+```
+
+If you just want to run it locally, you can use the local mode:
+
+```bash
 export SPARK_MASTER="local[1]"
 ```
+
 
 ```bash
 cd /root/open-traffic-arterial-streaming
@@ -112,5 +118,7 @@ export SPARK_JAVA_OPTS="-Dmesos.hostname=$SPARK_MASTER -Dsocc.hdfs.root=$HDFS_DA
 Now, the main spark program can be run:
 
 ```bash
-~/spark/run arterial_research.socc.experiments.Streaming5A 
+~/spark/run arterial_research.socc.experiments.Streaming5B 
 ```
+
+TODO: add explanations for what the program does and what it outputs.
